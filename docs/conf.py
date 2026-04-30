@@ -10,9 +10,9 @@ sys.path.insert(0, os.path.abspath(".."))
 # Project information
 # ---------------------------------------------------------------------------
 project = "FuzzyART"
-copyright = "2024, Your Name"
-author = "Your Name"
-release = "0.1.0"
+copyright = "2024, farzad ziaie nezhad"
+author = "farzad ziaie nezhad"
+release = "0.2.0"
 
 # ---------------------------------------------------------------------------
 # Extensions

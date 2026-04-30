@@ -1,24 +1,24 @@
 [tool.poetry]
 name = "fuzzyart"
 version = "0.2.0"
-description = "Fuzzy ARTMAP — incremental supervised learning classifier"
-authors = ["Your Name <you@example.com>"]
-license = "MIT"
+description = "Fuzzy ARTMAP, incremental supervised learning classifier"
+authors = ["farzad ziaie nezhad <farzadziaien@gmail.com>"]
+license = "GNU"
 readme = "README.md"
-homepage = "https://github.com/yourusername/fuzzyart"
-repository = "https://github.com/yourusername/fuzzyart"
+homepage = "https://github.com/farzad-ziaie/fuzzyart"
+repository = "https://github.com/farzad-ziaie/fuzzyart"
 documentation = "https://fuzzyart.readthedocs.io"
 keywords = ["machine-learning", "fuzzy-artmap", "classification", "online-learning", "art"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: GNU License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.12"
 ]
 packages = [{include = "fuzzyart"}]
 
@@ -75,14 +75,14 @@ fail_under = 80
 line-length = 88
 select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM"]
 ignore = ["E501"]
-target-version = "py39"
+target-version = "py312"
 
 [tool.black]
 line-length = 88
-target-version = ["py39", "py310", "py311"]
+target-version = ["py39", "py310", "py311", "py312"]
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true

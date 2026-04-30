@@ -1,16 +1,16 @@
 # FuzzyART
 
-[![CI](https://github.com/yourusername/fuzzyart/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/fuzzyart/actions)
-[![codecov](https://codecov.io/gh/yourusername/fuzzyart/branch/main/graph/badge.svg)](https://codecov.io/gh/yourusername/fuzzyart)
+[![CI](https://github.com/farzad-ziaie/fuzzyart/actions/workflows/ci.yml/badge.svg)](https://github.com/farzad-ziaie/fuzzyart/actions)
+[![codecov](https://codecov.io/gh/farzad-ziaie/fuzzyart/branch/main/graph/badge.svg)](https://codecov.io/gh/farzad-ziaie/fuzzyart)
 [![PyPI](https://img.shields.io/pypi/v/fuzzyart)](https://pypi.org/project/fuzzyart/)
 [![Python](https://img.shields.io/pypi/pyversions/fuzzyart)](https://pypi.org/project/fuzzyart/)
 [![Docs](https://readthedocs.org/projects/fuzzyart/badge/?version=latest)](https://fuzzyart.readthedocs.io)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+
 
 **FuzzyART** is a Python implementation of the **Fuzzy ARTMAP** supervised
-classifier — an incremental, online neural network that learns without
-catastrophic forgetting and requires no pre-specification of the number
-of categories.
+classifier, an incremental classifier that learns without catastrophic 
+forgetting and requires no pre-specification of the number of categories.
 
 > Carpenter, G.A. (2003). *Default ARTMAP.*  
 > IJCNN 2003. DOI: [10.1109/IJCNN.2003.1223900](https://doi.org/10.1109/IJCNN.2003.1223900)
@@ -149,7 +149,7 @@ clf2 = FuzzyARTMAP.load("model.pkl")
 ## Development
 
 ```bash
-git clone https://github.com/yourusername/fuzzyart
+git clone https://github.com/farzad-ziaie/fuzzyart
 cd fuzzyart
 poetry install --with dev,docs,examples
 
@@ -167,4 +167,4 @@ poetry run pytest
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+GPLv3 — see [LICENSE](LICENSE).
