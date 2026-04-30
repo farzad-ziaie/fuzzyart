@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fuzzyart"
-version = "0.1.0"
+version = "0.2.0"
 description = "Fuzzy ARTMAP — incremental supervised learning classifier"
 authors = ["Your Name <you@example.com>"]
 license = "MIT"

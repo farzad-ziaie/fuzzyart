@@ -1,26 +1,13 @@
 """
-Fuzzy ARTMAP classifier.
+Fuzzy ARTMAP classifier with optional input relevance weighting.
 
-Implementation of the Default ARTMAP algorithm described in:
+References
+----------
+Carpenter, G.A. (2003). "Default ARTMAP."
+    IJCNN 2003. DOI: 10.1109/IJCNN.2003.1223900
 
-    Carpenter, G.A. (2003). "Default ARTMAP."
-    Proceedings of the International Joint Conference on Neural Networks.
-    DOI: 10.1109/IJCNN.2003.1223900
-
-Fuzzy ARTMAP is an incremental, online supervised learning algorithm.
-It requires no pre-specification of the number of categories and can
-learn new patterns without catastrophic forgetting of old ones.
-
-Key properties
---------------
-- **Online learning**: processes one sample at a time; can be called
-  with ``partial_fit`` for true streaming use.
-- **No forgetting**: committed nodes are never removed or overwritten
-  in a destructive way.
-- **Complement coding**: inputs are automatically encoded as
-  ``[a, 1 - a]`` to preserve the L1 norm invariant.
-- **Vigilance control**: the ``rho_baseline`` parameter controls the
-  coarseness of the learned categories.
+Andonie, R. & Sasu, L. (2006). "Fuzzy ARTMAP with input relevances."
+    IEEE Trans. Neural Networks, 17(4), 929-941.
 """
 
 from __future__ import annotations
@@ -32,61 +19,36 @@ from numpy.typing import NDArray
 from tqdm.auto import trange
 
 from fuzzyart.models.base import BaseART
-from fuzzyart.preprocessing.transforms import complement_code, normalize
+from fuzzyart.preprocessing.transforms import complement_code
 from fuzzyart.utils.math import fuzzy_and, l1_norm
 
 
 class FuzzyARTMAP(BaseART):
-    """Fuzzy ARTMAP supervised classifier.
+    """Fuzzy ARTMAP supervised classifier with optional input relevance.
 
     Parameters
     ----------
     alpha : float, default=0.01
-        Signal rule parameter.  As ``alpha`` approaches zero the algorithm
-        maximises code compression (fewer, more general nodes).
-        Range: ``(0, ∞)``.
+        Signal rule parameter.  Range: ``(0, inf)``.
     beta : float, default=0.2
-        Learning rate / learning fraction.  ``beta=1`` implements
-        fast-commit / slow-recode learning.  Range: ``[0, 1]``.
+        Learning rate.  ``beta=1`` = fast learning.  Range: ``[0, 1]``.
     epsilon : float, default=-0.001
-        Match-tracking parameter.  Negative values (MT-) allow coding
-        of inconsistently labelled samples.  Range: ``(-1, 1)``.
+        Match-tracking parameter.  Range: ``(-1, 1)``.
     rho_baseline : float, default=0.0
-        Baseline vigilance.  Higher values produce more specific (finer
-        granularity) categories.  ``rho_baseline=0`` maximises
-        compression.  Range: ``[0, 1]``.
+        Baseline vigilance.  Higher = finer categories.  Range: ``[0, 1]``.
+    relevance : NDArray or None, default=None
+        Per-feature relevance weights ``r in [0,1]^(2M)`` applied to the
+        complement-coded signals (Andonie & Sasu 2006).  ``None`` = uniform.
     epochs : int, default=1
-        Number of full passes over the training data.  ``epochs=1``
-        simulates true online learning.
     verbose : bool, default=False
-        If ``True``, show a progress bar during training.
 
     Attributes
     ----------
     n_committed_ : int
-        Number of committed coding nodes (categories) after training.
     classes_ : NDArray
-        Unique class labels encountered during training.
-    W_ : list[NDArray]
-        Weight vectors for each committed coding node.
-        Shape of each element: ``(2 * n_features,)``.
-    W_ab_ : list
-        Class label assigned to each committed coding node.
+    W_ : list[NDArray]  -- weight vectors shape (2*n_features,)
+    W_ab_ : list        -- class label per node
     n_features_in_ : int
-        Dimensionality of the **original** (pre-complement-coded) input.
-
-    Examples
-    --------
-    >>> from sklearn.datasets import load_iris
-    >>> from fuzzyart.models import FuzzyARTMAP
-    >>> from fuzzyart.preprocessing import normalize
-    >>> X, y = load_iris(return_X_y=True)
-    >>> X = normalize(X)
-    >>> clf = FuzzyARTMAP(alpha=0.01, beta=0.5, rho_baseline=0.0, epochs=5)
-    >>> clf.fit(X, y)
-    FuzzyARTMAP(alpha=0.01, beta=0.5, ...)
-    >>> clf.predict(X[:5])
-    array([0, 0, 0, 0, 0])
     """
 
     def __init__(
@@ -95,6 +57,7 @@ class FuzzyARTMAP(BaseART):
         beta: float = 0.2,
         epsilon: float = -0.001,
         rho_baseline: float = 0.0,
+        relevance: "NDArray[np.float64] | None" = None,
         epochs: int = 1,
         verbose: bool = False,
     ) -> None:
@@ -103,108 +66,86 @@ class FuzzyARTMAP(BaseART):
         self.beta = beta
         self.epsilon = epsilon
         self.rho_baseline = rho_baseline
+        self.relevance = relevance
         self.epochs = epochs
         self.verbose = verbose
 
-        # Runtime state — initialised in fit()
         self.W_: list[NDArray[np.float64]] = []
         self.W_ab_: list[Any] = []
         self.n_features_in_: int = 0
-        self._M: int = 0  # 2 * n_features_in_ (complement-coded dim)
-        self._rho: float = 0.0  # current vigilance (changes during search)
+        self._M: int = 0
+        self._r: "NDArray | None" = None
+        self._rho: float = 0.0
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
-    def fit(self, X: NDArray[np.float64], y: NDArray) -> "FuzzyARTMAP":
-        """Train FuzzyARTMAP on labelled data.
-
-        The input ``X`` should already be normalised to ``[0, 1]``.
-        Complement coding is applied internally.
-
-        Parameters
-        ----------
-        X:
-            Feature matrix of shape ``(n_samples, n_features)`` with
-            values in ``[0, 1]``.
-        y:
-            Class labels of shape ``(n_samples,)``.
-
-        Returns
-        -------
-        self
-        """
+    def fit(self, X: NDArray, y: NDArray) -> "FuzzyARTMAP":
+        """Train on labelled data.  X must be normalised to [0, 1]."""
         X, y = self._validate_inputs(X, y)
         self._initialise(X, y)
-
         epoch_iter = trange(self.epochs, desc="Epochs", disable=not self.verbose)
         for epoch in epoch_iter:
             n_new = self._train_epoch(X, y, epoch)
             if self.verbose:
                 epoch_iter.set_postfix(nodes=self.n_committed_, new=n_new)
-
         self.is_fitted_ = True
         return self
 
-    def partial_fit(self, X: NDArray[np.float64], y: NDArray) -> "FuzzyARTMAP":
-        """Incrementally train on a new batch — true online learning.
-
-        Safe to call multiple times; existing nodes are never destroyed.
-
-        Parameters
-        ----------
-        X:
-            Feature matrix of shape ``(n_samples, n_features)`` with
-            values in ``[0, 1]``.
-        y:
-            Class labels of shape ``(n_samples,)``.
-
-        Returns
-        -------
-        self
-        """
+    def partial_fit(self, X: NDArray, y: NDArray) -> "FuzzyARTMAP":
+        """Incremental / streaming fit.  Safe to call repeatedly."""
         X, y = self._validate_inputs(X, y)
-
         if not self.is_fitted_:
             self._initialise(X, y)
         else:
-            # Merge any new classes seen in this batch
             self.classes_ = np.unique(np.concatenate([self.classes_, np.unique(y)]))
-
         self._train_epoch(X, y, epoch=0)
         self.is_fitted_ = True
         return self
 
-    def predict(self, X: NDArray[np.float64]) -> NDArray:
-        """Predict class labels for samples in ``X``.
+    def predict(self, X: NDArray) -> NDArray:
+        """Return class labels for X.  X must be normalised to [0, 1]."""
+        self._check_is_fitted()
+        X = np.asarray(X, dtype=np.float64)
+        A = complement_code(X)
+        return np.array([self._predict_one(A[i]) for i in range(len(A))])
 
-        Parameters
-        ----------
-        X:
-            Feature matrix of shape ``(n_samples, n_features)`` with
-            values in ``[0, 1]``.
+    def predict_proba(self, X: NDArray) -> NDArray:
+        """Return class probability estimates for X.
+
+        Probabilities are computed as a softmax over per-class activation
+        sums: nodes are weighted by their activation signal, and each
+        class receives the sum of activations for its nodes.
 
         Returns
         -------
-        NDArray
-            Predicted class labels of shape ``(n_samples,)``.
+        NDArray, shape (n_samples, n_classes)
         """
         self._check_is_fitted()
         X = np.asarray(X, dtype=np.float64)
         A = complement_code(X)
-        predictions = []
-        for i in range(A.shape[0]):
-            predictions.append(self._predict_one(A[i]))
-        return np.array(predictions)
+        class_list = list(self.classes_)
+        n_classes = len(class_list)
+        proba = np.zeros((len(A), n_classes))
+        for i in range(len(A)):
+            T = self._compute_signals(A[i])
+            # Accumulate activation per class
+            class_act = np.zeros(n_classes)
+            for j, label in enumerate(self.W_ab_):
+                if label in class_list:
+                    class_act[class_list.index(label)] += T[j]
+            # Softmax
+            class_act -= class_act.max()
+            exp_act = np.exp(class_act)
+            proba[i] = exp_act / exp_act.sum()
+        return proba
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _validate_inputs(
-        self, X: NDArray, y: NDArray
-    ) -> tuple[NDArray[np.float64], NDArray]:
+    def _validate_inputs(self, X, y):
         X = np.asarray(X, dtype=np.float64)
         y = np.asarray(y)
         if X.ndim != 2:
@@ -223,119 +164,98 @@ class FuzzyARTMAP(BaseART):
             )
         return X, y
 
-    def _initialise(self, X: NDArray[np.float64], y: NDArray) -> None:
-        """Set up weight matrices for first call to fit / partial_fit."""
+    def _initialise(self, X: NDArray, y: NDArray) -> None:
         self.n_features_in_ = X.shape[1]
         self._M = 2 * self.n_features_in_
-        # Collect all unique classes upfront so classes_ is complete after fit
         self.classes_ = np.unique(y)
-        # Start with zero committed nodes; first sample always creates one
         self.W_ = []
         self.W_ab_ = []
         self.n_committed_ = 0
+        # Resolve relevance vector
+        if self.relevance is not None:
+            r = np.asarray(self.relevance, dtype=np.float64)
+            if r.shape != (self._M,):
+                raise ValueError(
+                    f"relevance must have shape ({self._M},) "
+                    f"(= 2 * n_features); got {r.shape}."
+                )
+            self._r = r / (r.sum() + 1e-12) * self._M  # normalise so sum == M
+        else:
+            self._r = None
 
-    def _train_epoch(
-        self, X: NDArray[np.float64], y: NDArray, epoch: int
-    ) -> int:
-        """Run one epoch over the dataset. Returns number of new nodes."""
+    def _train_epoch(self, X: NDArray, y: NDArray, epoch: int) -> int:
         A = complement_code(X)
         n_new = 0
-        for i in range(A.shape[0]):
-            added = self._train_one(A[i], y[i])
-            if added:
+        for i in range(len(A)):
+            if self._train_one(A[i], y[i]):
                 n_new += 1
         return n_new
 
-    def _train_one(self, a: NDArray[np.float64], k: Any) -> bool:
-        """Process a single complement-coded input ``a`` with label ``k``.
-
-        Returns
-        -------
-        bool
-            ``True`` if a new coding node was committed.
-        """
+    def _train_one(self, a: NDArray, k: Any) -> bool:
+        """Returns True if a new node was committed."""
         self._rho = self.rho_baseline
-
-        # If no nodes yet, always commit
         if self.n_committed_ == 0:
             self._add_node(a, k)
             return True
 
-        # Compute activation signals for all committed nodes
         T = self._compute_signals(a)
-
-        # Sort nodes by activation (descending)
         order = np.flip(np.argsort(T))
-        T_sorted = T[order]
-        alpha_M = self.alpha * self._M
-        candidates = order[T_sorted > alpha_M]
+        candidates = order[T[order] > self.alpha * self._M]
 
         if candidates.size == 0:
             self._add_node(a, k)
             return True
 
-        # Search for a node that satisfies vigilance AND predicts k
         for j in candidates:
-            match = l1_norm(fuzzy_and(a, self.W_[j])) / self._M
+            match = self._match_score(a, j)
             if match >= self._rho:
                 if self.W_ab_[j] == k or self.W_ab_[j] is None:
-                    # Commit or update node
                     self.W_ab_[j] = k
                     self._update_weights(j, a)
                     return False
                 else:
-                    # Match-tracking: raise vigilance just above current match
                     self._rho = match + abs(self.epsilon)
 
-        # No suitable node found — commit a new one
         self._add_node(a, k)
         return True
 
-    def _predict_one(self, a: NDArray[np.float64]) -> Any:
-        """Classify a single complement-coded input."""
+    def _predict_one(self, a: NDArray) -> Any:
         if self.n_committed_ == 0:
             return self.classes_[0] if len(self.classes_) > 0 else None
-
         T = self._compute_signals(a)
         order = np.flip(np.argsort(T))
-        T_sorted = T[order]
-        alpha_M = self.alpha * self._M
-        candidates = order[T_sorted > alpha_M]
-
+        candidates = order[T[order] > self.alpha * self._M]
         if candidates.size == 0:
-            # Fall back to highest activation node
             return self.W_ab_[int(np.argmax(T))]
-
-        # Return the label of the highest-activation candidate
         return self.W_ab_[candidates[0]]
 
-    def _compute_signals(self, a: NDArray[np.float64]) -> NDArray[np.float64]:
-        """Compute activation signal T_j for all committed nodes.
+    def _compute_signals(self, a: NDArray) -> NDArray:
+        """T_j = ||r * fuzzy_and(A, W_j)||_1 + (1-alpha)*(||r||_1 - ||r*W_j||_1)
 
-        T_j = ||fuzzy_and(A, W_j)||_1 + (1 - alpha) * (M - ||W_j||_1)
-
-        The second term acts as a tie-breaker: more committed (larger weight
-        norm) nodes are preferred, which biases towards existing categories.
+        When relevance r is uniform (None), this reduces to the standard
+        Fuzzy ARTMAP signal rule.
         """
-        T = np.zeros(self.n_committed_)
-        for j in range(self.n_committed_):
-            numerator = l1_norm(fuzzy_and(a, self.W_[j]))
-            tie_break = (1.0 - self.alpha) * (self._M - l1_norm(self.W_[j]))
-            T[j] = numerator + tie_break
-        return T
+        W = np.stack(self.W_, axis=0)           # (C, M)
+        fa = np.minimum(a[None, :], W)           # (C, M) vectorised fuzzy AND
+        if self._r is not None:
+            r = self._r
+            numerator   = (r * fa).sum(axis=1)
+            tie_break   = (1.0 - self.alpha) * (r.sum() - (r * W).sum(axis=1))
+        else:
+            numerator   = fa.sum(axis=1)
+            tie_break   = (1.0 - self.alpha) * (self._M - W.sum(axis=1))
+        return numerator + tie_break
 
-    def _update_weights(self, j: int, a: NDArray[np.float64]) -> None:
-        """Slow-learning weight update for node ``j``.
+    def _match_score(self, a: NDArray, j: int) -> float:
+        fa = fuzzy_and(a, self.W_[j])
+        if self._r is not None:
+            return float((self._r * fa).sum() / self._r.sum())
+        return float(l1_norm(fa) / self._M)
 
-        W_j ← β * fuzzy_and(A, W_j) + (1 − β) * W_j
-        """
-        self.W_[j] = (
-            self.beta * fuzzy_and(a, self.W_[j])
-            + (1.0 - self.beta) * self.W_[j]
-        )
+    def _update_weights(self, j: int, a: NDArray) -> None:
+        self.W_[j] = self.beta * fuzzy_and(a, self.W_[j]) + (1.0 - self.beta) * self.W_[j]
 
-    def _add_node(self, a: NDArray[np.float64], k: Any) -> None:
-        """Commit a new coding node with weight vector ``a`` and label ``k``."""
+    def _add_node(self, a: NDArray, k: Any) -> None:
         self.W_.append(a.copy())
         self.W_ab_.append(k)
         self.n_committed_ += 1
@@ -344,37 +264,15 @@ class FuzzyARTMAP(BaseART):
     # Introspection
     # ------------------------------------------------------------------
 
-    def get_node_weights(self) -> NDArray[np.float64]:
-        """Return a matrix of all committed node weight vectors.
-
-        Returns
-        -------
-        NDArray
-            Shape ``(n_committed_, 2 * n_features_in_)``.
-        """
+    def get_node_weights(self) -> NDArray:
         self._check_is_fitted()
         return np.stack(self.W_, axis=0)
 
     def get_node_labels(self) -> list:
-        """Return the class label assigned to each committed node.
-
-        Returns
-        -------
-        list
-            Length ``n_committed_``.
-        """
         self._check_is_fitted()
         return list(self.W_ab_)
 
     def summary(self) -> dict:
-        """Return a dictionary summarising the trained model.
-
-        Returns
-        -------
-        dict
-            Keys: ``n_committed``, ``n_features``, ``n_classes``,
-            ``classes``, ``hyperparameters``.
-        """
         self._check_is_fitted()
         return {
             "n_committed": self.n_committed_,

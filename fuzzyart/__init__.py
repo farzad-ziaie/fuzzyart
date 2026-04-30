@@ -1,28 +1,16 @@
 """
-FuzzyART — Fuzzy ARTMAP classifier for Python.
-
-Quick start
------------
->>> from sklearn.datasets import load_iris
->>> from fuzzyart import FuzzyARTMAP
->>> from fuzzyart.preprocessing import normalize
->>>
->>> X, y = load_iris(return_X_y=True)
->>> X = normalize(X)
->>> clf = FuzzyARTMAP(alpha=0.01, beta=0.5, epochs=5)
->>> clf.fit(X, y)
->>> clf.predict(X[:3])
-array([0, 0, 0])
+FuzzyART — ART-family classifiers for Python.
 """
-
 from importlib.metadata import version, PackageNotFoundError
-
 try:
     __version__ = version("fuzzyart")
 except PackageNotFoundError:
-    __version__ = "0.0.0"
+    __version__ = "0.2.0"
 
 from fuzzyart.models.fam import FuzzyARTMAP
+from fuzzyart.models.bayesian_artmap import BayesianARTMAP
+from fuzzyart.models.semisupervised_artmap import SemiSupervisedARTMAP
+from fuzzyart.models.ensemble import VotingARTMAP, BaggingARTMAP
 from fuzzyart.preprocessing.transforms import (
     complement_code,
     normalize,
@@ -31,6 +19,10 @@ from fuzzyart.preprocessing.transforms import (
 
 __all__ = [
     "FuzzyARTMAP",
+    "BayesianARTMAP",
+    "SemiSupervisedARTMAP",
+    "VotingARTMAP",
+    "BaggingARTMAP",
     "normalize",
     "complement_code",
     "normalize_and_complement_code",
