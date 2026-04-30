@@ -1,0 +1,89 @@
+[tool.poetry]
+name = "fuzzyart"
+version = "0.1.0"
+description = "Fuzzy ARTMAP — incremental supervised learning classifier"
+authors = ["Your Name <you@example.com>"]
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/yourusername/fuzzyart"
+repository = "https://github.com/yourusername/fuzzyart"
+documentation = "https://fuzzyart.readthedocs.io"
+keywords = ["machine-learning", "fuzzy-artmap", "classification", "online-learning", "art"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+packages = [{include = "fuzzyart"}]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+numpy = ">=1.22"
+scikit-learn = ">=1.1"
+tqdm = ">=4.60"
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=7.0"
+pytest-cov = ">=4.0"
+pytest-xdist = ">=3.0"
+ruff = ">=0.1"
+black = ">=23.0"
+mypy = ">=1.0"
+pre-commit = ">=3.0"
+
+[tool.poetry.group.docs.dependencies]
+sphinx = ">=7.0"
+sphinx-rtd-theme = ">=2.0"
+sphinx-autodoc-typehints = ">=1.23"
+myst-parser = ">=2.0"
+nbsphinx = ">=0.9"
+
+[tool.poetry.group.examples.dependencies]
+jupyter = ">=1.0"
+matplotlib = ">=3.6"
+xgboost = ">=1.7"
+pandas = ">=1.5"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+# ---------------------------------------------------------------------------
+# Tool configuration
+# ---------------------------------------------------------------------------
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --cov=fuzzyart --cov-report=term-missing --cov-report=xml"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.coverage.run]
+source = ["fuzzyart"]
+omit = ["tests/*", "examples/*", "docs/*"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 80
+
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM"]
+ignore = ["E501"]
+target-version = "py39"
+
+[tool.black]
+line-length = 88
+target-version = ["py39", "py310", "py311"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
