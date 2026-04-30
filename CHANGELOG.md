@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.0] — 2024-01-01
+## [0.1.0] — 2020-01-01
 
 ### Added
 - `FuzzyARTMAP` classifier with full sklearn compatibility
@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions CI/CD pipeline
 - Poetry packaging, PyPI-ready
 
-## [0.2.0] — 2024-01-01
+## [0.2.0] — 2026-04-31
 
 ### Added
 - `BayesianARTMAP` — diagonal Gaussian categories, calibrated `predict_proba`,
