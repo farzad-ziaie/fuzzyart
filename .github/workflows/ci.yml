@@ -16,7 +16,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install Poetry
         run: pip install poetry
@@ -59,7 +59,7 @@ jobs:
         run: poetry run pytest --cov=fuzzyart --cov-report=xml -v tests/
 
       - name: Upload coverage
-        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
         uses: codecov/codecov-action@v4
         with:
           file: coverage.xml
@@ -73,7 +73,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install Poetry
         run: pip install poetry
@@ -108,7 +108,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install Poetry
         run: pip install poetry
