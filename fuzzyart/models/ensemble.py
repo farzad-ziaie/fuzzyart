@@ -83,9 +83,9 @@ class VotingARTMAP(BaseEstimator, ClassifierMixin):
         self.random_state = random_state
         self.verbose = verbose
 
-    def fit(self, X: NDArray, y: NDArray) -> VotingARTMAP:
+    def fit(self, x: NDArray, y: NDArray) -> VotingARTMAP:
         """Train ``n_voters`` classifiers on shuffled orderings of the data."""
-        X = np.asarray(X, dtype=np.float64)
+        x = np.asarray(x, dtype=np.float64)
         y = np.asarray(y)
         rng = np.random.default_rng(self.random_state)
         base = FuzzyARTMAP() if self.base_estimator is None else self.base_estimator
@@ -95,35 +95,35 @@ class VotingARTMAP(BaseEstimator, ClassifierMixin):
         voter_iter = trange(self.n_voters, desc="Voters", disable=not self.verbose)
         for _ in voter_iter:
             clf = clone(base)
-            idx = rng.permutation(len(X))
-            clf.fit(X[idx], y[idx])
+            idx = rng.permutation(len(x))
+            clf.fit(x[idx], y[idx])
             self.voters_.append(clf)
         return self
 
-    def predict(self, X: NDArray) -> NDArray:
+    def predict(self, x: NDArray) -> NDArray:
         """Return ensemble predictions."""
         check_is_fitted(self, "voters_")
         if self.voting == "soft":
-            proba = self.predict_proba(X)
+            proba = self.predict_proba(x)
             idx = np.argmax(proba, axis=1)
             return np.array([self.classes_[i] for i in idx])
         # Hard voting: majority label per sample
-        all_preds = np.stack([v.predict(X) for v in self.voters_], axis=0)  # (V, N)
+        all_preds = np.stack([v.predict(x) for v in self.voters_], axis=0)  # (V, N)
         result = []
         for i in range(all_preds.shape[1]):
             labels, counts = np.unique(all_preds[:, i], return_counts=True)
             result.append(labels[np.argmax(counts)])
         return np.array(result)
 
-    def predict_proba(self, X: NDArray) -> NDArray:
+    def predict_proba(self, x: NDArray) -> NDArray:
         """Return averaged class probabilities (requires soft-capable base)."""
         check_is_fitted(self, "voters_")
         class_list = list(self.classes_)
         n_classes = len(class_list)
-        proba_sum = np.zeros((len(X), n_classes))
+        proba_sum = np.zeros((len(x), n_classes))
         for v in self.voters_:
             if hasattr(v, "predict_proba"):
-                p = v.predict_proba(X)
+                p = v.predict_proba(x)
                 # Align columns in case a voter didn't see all classes
                 voter_classes = list(v.classes_)
                 for ki, klass in enumerate(class_list):
@@ -131,7 +131,7 @@ class VotingARTMAP(BaseEstimator, ClassifierMixin):
                         proba_sum[:, ki] += p[:, voter_classes.index(klass)]
             else:
                 # Fallback: one-hot encode hard predictions
-                preds = v.predict(X)
+                preds = v.predict(x)
                 for ki, klass in enumerate(class_list):
                     proba_sum[:, ki] += (preds == klass).astype(float)
         return proba_sum / len(self.voters_)
@@ -180,12 +180,12 @@ class BaggingARTMAP(BaseEstimator, ClassifierMixin):
         self.random_state = random_state
         self.verbose = verbose
 
-    def fit(self, X: NDArray, y: NDArray) -> BaggingARTMAP:
+    def fit(self, x: NDArray, y: NDArray) -> BaggingARTMAP:
         """Train on bootstrap samples and compute OOB score."""
-        X = np.asarray(X, dtype=np.float64)
+        x = np.asarray(x, dtype=np.float64)
         y = np.asarray(y)
         rng = np.random.default_rng(self.random_state)
-        n = len(X)
+        n = len(x)
         n_draw = max(1, int(n * self.max_samples))
         base = FuzzyARTMAP() if self.base_estimator is None else self.base_estimator
         self.classes_ = np.unique(y)
@@ -197,49 +197,49 @@ class BaggingARTMAP(BaseEstimator, ClassifierMixin):
             idx = rng.integers(0, n, size=n_draw)
             oob = np.setdiff1d(np.arange(n), idx)
             clf = clone(base)
-            clf.fit(X[idx], y[idx])
+            clf.fit(x[idx], y[idx])
             self.estimators_.append(clf)
             self._oob_indices.append(oob)
 
-        self.oob_score_ = self._compute_oob_score(X, y)
+        self.oob_score_ = self._compute_oob_score(x, y)
         return self
 
-    def predict(self, X: NDArray) -> NDArray:
+    def predict(self, x: NDArray) -> NDArray:
         check_is_fitted(self, "estimators_")
-        all_preds = np.stack([e.predict(X) for e in self.estimators_], axis=0)
+        all_preds = np.stack([e.predict(x) for e in self.estimators_], axis=0)
         result = []
         for i in range(all_preds.shape[1]):
             labels, counts = np.unique(all_preds[:, i], return_counts=True)
             result.append(labels[np.argmax(counts)])
         return np.array(result)
 
-    def predict_proba(self, X: NDArray) -> NDArray:
+    def predict_proba(self, x: NDArray) -> NDArray:
         check_is_fitted(self, "estimators_")
         class_list = list(self.classes_)
         n_classes = len(class_list)
-        proba_sum = np.zeros((len(X), n_classes))
+        proba_sum = np.zeros((len(x), n_classes))
         for e in self.estimators_:
             if hasattr(e, "predict_proba"):
-                p = e.predict_proba(X)
+                p = e.predict_proba(x)
                 voter_classes = list(e.classes_)
                 for ki, klass in enumerate(class_list):
                     if klass in voter_classes:
                         proba_sum[:, ki] += p[:, voter_classes.index(klass)]
             else:
-                preds = e.predict(X)
+                preds = e.predict(x)
                 for ki, klass in enumerate(class_list):
                     proba_sum[:, ki] += (preds == klass).astype(float)
         return proba_sum / len(self.estimators_)
 
-    def _compute_oob_score(self, X: NDArray, y: NDArray) -> float:
+    def _compute_oob_score(self, x: NDArray, y: NDArray) -> float:
         """Estimate accuracy on OOB samples."""
-        n = len(X)
+        n = len(x)
         votes: dict[int, list] = {i: [] for i in range(n)}
-        for clf, oob_idx in zip(self.estimators_, self._oob_indices):
+        for clf, oob_idx in zip(self.estimators_, self._oob_indices, strict=True):
             if len(oob_idx) == 0:
                 continue
-            preds = clf.predict(X[oob_idx])
-            for idx, pred in zip(oob_idx, preds):
+            preds = clf.predict(x[oob_idx])
+            for idx, pred in zip(oob_idx, preds, strict=True):
                 votes[idx].append(pred)
         correct, total = 0, 0
         for i in range(n):
