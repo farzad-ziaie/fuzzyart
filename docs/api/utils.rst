@@ -1,7 +1,6 @@
-Utilities
-=========
+Utils
+=====
 
-.. automodule:: fuzzyart.utils.math
-   :members:
-   :undoc-members:
-   :show-inheritance:
+API Reference - Utils
+
+See the main API documentation for details on utility functions.

@@ -1,7 +1,6 @@
 Preprocessing
 =============
 
-.. automodule:: fuzzyart.preprocessing.transforms
-   :members:
-   :undoc-members:
-   :show-inheritance:
+API Reference - Preprocessing
+
+See the main API documentation for details on preprocessing utilities.
