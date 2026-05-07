@@ -57,7 +57,7 @@ class FuzzyARTMAP(BaseART):
         beta: float = 0.2,
         epsilon: float = -0.001,
         rho_baseline: float = 0.0,
-        relevance: "NDArray[np.float64] | None" = None,
+        relevance: NDArray[np.float64] | None = None,
         epochs: int = 1,
         verbose: bool = False,
     ) -> None:
@@ -74,45 +74,45 @@ class FuzzyARTMAP(BaseART):
         self.W_ab_: list[Any] = []
         self.n_features_in_: int = 0
         self._M: int = 0
-        self._r: "NDArray | None" = None
+        self._r: NDArray | None = None
         self._rho: float = 0.0
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
-    def fit(self, X: NDArray, y: NDArray) -> "FuzzyARTMAP":
+    def fit(self, x: NDArray, y: NDArray) -> FuzzyARTMAP:
         """Train on labelled data.  X must be normalised to [0, 1]."""
-        X, y = self._validate_inputs(X, y)
-        self._initialise(X, y)
+        x, y = self._validate_inputs(x, y)
+        self._initialise(x, y)
         epoch_iter = trange(self.epochs, desc="Epochs", disable=not self.verbose)
         for epoch in epoch_iter:
-            n_new = self._train_epoch(X, y, epoch)
+            n_new = self._train_epoch(x, y, epoch)
             if self.verbose:
                 epoch_iter.set_postfix(nodes=self.n_committed_, new=n_new)
         self.is_fitted_ = True
         return self
 
-    def partial_fit(self, X: NDArray, y: NDArray) -> "FuzzyARTMAP":
+    def partial_fit(self, x: NDArray, y: NDArray) -> FuzzyARTMAP:
         """Incremental / streaming fit.  Safe to call repeatedly."""
-        X, y = self._validate_inputs(X, y)
+        x, y = self._validate_inputs(x, y)
         if not self.is_fitted_:
-            self._initialise(X, y)
+            self._initialise(x, y)
         else:
             self.classes_ = np.unique(np.concatenate([self.classes_, np.unique(y)]))
-        self._train_epoch(X, y, epoch=0)
+        self._train_epoch(x, y, epoch=0)
         self.is_fitted_ = True
         return self
 
-    def predict(self, X: NDArray) -> NDArray:
-        """Return class labels for X.  X must be normalised to [0, 1]."""
+    def predict(self, x: NDArray) -> NDArray:
+        """Return class labels for x.  x must be normalised to [0, 1]."""
         self._check_is_fitted()
-        X = np.asarray(X, dtype=np.float64)
-        A = complement_code(X)
-        return np.array([self._predict_one(A[i]) for i in range(len(A))])
+        x = np.asarray(x, dtype=np.float64)
+        a = complement_code(x)
+        return np.array([self._predict_one(a[i]) for i in range(len(a))])
 
-    def predict_proba(self, X: NDArray) -> NDArray:
-        """Return class probability estimates for X.
+    def predict_proba(self, x: NDArray) -> NDArray:
+        """Return class probability estimates for x.
 
         Probabilities are computed as a softmax over per-class activation
         sums: nodes are weighted by their activation signal, and each
@@ -123,18 +123,18 @@ class FuzzyARTMAP(BaseART):
         NDArray, shape (n_samples, n_classes)
         """
         self._check_is_fitted()
-        X = np.asarray(X, dtype=np.float64)
-        A = complement_code(X)
+        x = np.asarray(x, dtype=np.float64)
+        a = complement_code(x)
         class_list = list(self.classes_)
         n_classes = len(class_list)
-        proba = np.zeros((len(A), n_classes))
-        for i in range(len(A)):
-            T = self._compute_signals(A[i])
+        proba = np.zeros((len(a), n_classes))
+        for i in range(len(a)):
+            t = self._compute_signals(a[i])
             # Accumulate activation per class
             class_act = np.zeros(n_classes)
             for j, label in enumerate(self.W_ab_):
                 if label in class_list:
-                    class_act[class_list.index(label)] += T[j]
+                    class_act[class_list.index(label)] += t[j]
             # Softmax
             class_act -= class_act.max()
             exp_act = np.exp(class_act)
@@ -145,27 +145,27 @@ class FuzzyARTMAP(BaseART):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _validate_inputs(self, X, y):
-        X = np.asarray(X, dtype=np.float64)
+    def _validate_inputs(self, x, y):
+        x = np.asarray(x, dtype=np.float64)
         y = np.asarray(y)
-        if X.ndim != 2:
-            raise ValueError(f"X must be 2-D, got shape {X.shape}.")
+        if x.ndim != 2:
+            raise ValueError(f"x must be 2-D, got shape {x.shape}.")
         if y.ndim != 1:
             raise ValueError(f"y must be 1-D, got shape {y.shape}.")
-        if X.shape[0] != y.shape[0]:
+        if x.shape[0] != y.shape[0]:
             raise ValueError(
-                f"X and y must have the same number of samples; "
-                f"got X: {X.shape[0]}, y: {y.shape[0]}."
+                f"x and y must have the same number of samples; "
+                f"got x: {x.shape[0]}, y: {y.shape[0]}."
             )
-        if np.any(X < 0) or np.any(X > 1):
+        if np.any(x < 0) or np.any(x > 1):
             raise ValueError(
-                "All values in X must be in [0, 1]. "
+                "All values in x must be in [0, 1]. "
                 "Use fuzzyart.preprocessing.normalize() first."
             )
-        return X, y
+        return x, y
 
-    def _initialise(self, X: NDArray, y: NDArray) -> None:
-        self.n_features_in_ = X.shape[1]
+    def _initialise(self, x: NDArray, y: NDArray) -> None:
+        self.n_features_in_ = x.shape[1]
         self._M = 2 * self.n_features_in_
         self.classes_ = np.unique(y)
         self.W_ = []
@@ -183,11 +183,11 @@ class FuzzyARTMAP(BaseART):
         else:
             self._r = None
 
-    def _train_epoch(self, X: NDArray, y: NDArray, epoch: int) -> int:
-        A = complement_code(X)
+    def _train_epoch(self, x: NDArray, y: NDArray, epoch: int) -> int:
+        a = complement_code(x)
         n_new = 0
-        for i in range(len(A)):
-            if self._train_one(A[i], y[i]):
+        for i in range(len(a)):
+            if self._train_one(a[i], y[i]):
                 n_new += 1
         return n_new
 
@@ -198,9 +198,9 @@ class FuzzyARTMAP(BaseART):
             self._add_node(a, k)
             return True
 
-        T = self._compute_signals(a)
-        order = np.flip(np.argsort(T))
-        candidates = order[T[order] > self.alpha * self._M]
+        t = self._compute_signals(a)
+        order = np.flip(np.argsort(t))
+        candidates = order[t[order] > self.alpha * self._M]
 
         if candidates.size == 0:
             self._add_node(a, k)
@@ -222,11 +222,11 @@ class FuzzyARTMAP(BaseART):
     def _predict_one(self, a: NDArray) -> Any:
         if self.n_committed_ == 0:
             return self.classes_[0] if len(self.classes_) > 0 else None
-        T = self._compute_signals(a)
-        order = np.flip(np.argsort(T))
-        candidates = order[T[order] > self.alpha * self._M]
+        t = self._compute_signals(a)
+        order = np.flip(np.argsort(t))
+        candidates = order[t[order] > self.alpha * self._M]
         if candidates.size == 0:
-            return self.W_ab_[int(np.argmax(T))]
+            return self.W_ab_[int(np.argmax(t))]
         return self.W_ab_[candidates[0]]
 
     def _compute_signals(self, a: NDArray) -> NDArray:
@@ -235,15 +235,15 @@ class FuzzyARTMAP(BaseART):
         When relevance r is uniform (None), this reduces to the standard
         Fuzzy ARTMAP signal rule.
         """
-        W = np.stack(self.W_, axis=0)           # (C, M)
-        fa = np.minimum(a[None, :], W)           # (C, M) vectorised fuzzy AND
+        w = np.stack(self.W_, axis=0)           # (C, M)
+        fa = np.minimum(a[None, :], w)           # (C, M) vectorised fuzzy AND
         if self._r is not None:
             r = self._r
             numerator   = (r * fa).sum(axis=1)
-            tie_break   = (1.0 - self.alpha) * (r.sum() - (r * W).sum(axis=1))
+            tie_break   = (1.0 - self.alpha) * (r.sum() - (r * w).sum(axis=1))
         else:
             numerator   = fa.sum(axis=1)
-            tie_break   = (1.0 - self.alpha) * (self._M - W.sum(axis=1))
+            tie_break   = (1.0 - self.alpha) * (self._M - w.sum(axis=1))
         return numerator + tie_break
 
     def _match_score(self, a: NDArray, j: int) -> float:
