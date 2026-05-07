@@ -3,7 +3,6 @@
 [![CI](https://github.com/farzad-ziaie/fuzzyart/actions/workflows/ci.yml/badge.svg)](https://github.com/farzad-ziaie/fuzzyart/actions)
 [![codecov](https://codecov.io/gh/farzad-ziaie/fuzzyart/branch/main/graph/badge.svg)](https://codecov.io/gh/farzad-ziaie/fuzzyart)
 [![PyPI](https://img.shields.io/pypi/v/fuzzyart)](https://pypi.org/project/fuzzyart/)
-[![Python](https://img.shields.io/pypi/pyversions/fuzzyart)](https://pypi.org/project/fuzzyart/)
 [![Docs](https://readthedocs.org/projects/fuzzyart/badge/?version=latest)](https://fuzzyart.readthedocs.io)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
@@ -162,9 +161,3 @@ poetry run pytest
 # Build docs
 ./scripts/ci.sh docs
 ```
-
----
-
-## License
-
-GPLv3 — see [LICENSE](LICENSE).
