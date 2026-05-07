@@ -11,7 +11,6 @@ from __future__ import annotations
 import pickle
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -44,11 +43,11 @@ class BaseART(BaseEstimator, ClassifierMixin, ABC):
     # ------------------------------------------------------------------
 
     @abstractmethod
-    def fit(self, X: NDArray[np.float64], y: NDArray) -> "BaseART":
+    def fit(self, x: NDArray[np.float64], y: NDArray) -> BaseART:
         """Train the model on ``X`` with labels ``y``."""
 
     @abstractmethod
-    def predict(self, X: NDArray[np.float64]) -> NDArray:
+    def predict(self, x: NDArray[np.float64]) -> NDArray:
         """Return class predictions for ``X``."""
 
     # ------------------------------------------------------------------
@@ -67,7 +66,7 @@ class BaseART(BaseEstimator, ClassifierMixin, ABC):
             pickle.dump(self, fh)
 
     @classmethod
-    def load(cls, path: str | Path) -> "BaseART":
+    def load(cls, path: str | Path) -> BaseART:
         """Load a previously saved model from disk.
 
         Parameters

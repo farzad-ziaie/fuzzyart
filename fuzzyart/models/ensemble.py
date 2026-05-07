@@ -83,7 +83,7 @@ class VotingARTMAP(BaseEstimator, ClassifierMixin):
         self.random_state = random_state
         self.verbose = verbose
 
-    def fit(self, X: NDArray, y: NDArray) -> "VotingARTMAP":
+    def fit(self, X: NDArray, y: NDArray) -> VotingARTMAP:
         """Train ``n_voters`` classifiers on shuffled orderings of the data."""
         X = np.asarray(X, dtype=np.float64)
         y = np.asarray(y)
@@ -180,7 +180,7 @@ class BaggingARTMAP(BaseEstimator, ClassifierMixin):
         self.random_state = random_state
         self.verbose = verbose
 
-    def fit(self, X: NDArray, y: NDArray) -> "BaggingARTMAP":
+    def fit(self, X: NDArray, y: NDArray) -> BaggingARTMAP:
         """Train on bootstrap samples and compute OOB score."""
         X = np.asarray(X, dtype=np.float64)
         y = np.asarray(y)

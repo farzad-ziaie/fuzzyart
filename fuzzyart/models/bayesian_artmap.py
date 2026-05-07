@@ -25,7 +25,6 @@ from numpy.typing import NDArray
 from tqdm.auto import trange
 
 from fuzzyart.models.base import BaseART
-from fuzzyart.preprocessing.transforms import normalize
 
 
 class BayesianARTMAP(BaseART):
@@ -112,36 +111,36 @@ class BayesianARTMAP(BaseART):
     # Public API
     # ------------------------------------------------------------------
 
-    def fit(self, X: NDArray, y: NDArray) -> "BayesianARTMAP":
+    def fit(self, x: NDArray, y: NDArray) -> BayesianARTMAP:
         """Train on labelled data.  X must be normalised to [0, 1]."""
-        X, y = self._validate_inputs(X, y)
-        self._initialise(X, y)
+        x, y = self._validate_inputs(x, y)
+        self._initialise(x, y)
         epoch_iter = trange(self.epochs, desc="Epochs", disable=not self.verbose)
-        for epoch in epoch_iter:
-            n_new = self._train_epoch(X, y)
+        for _epoch in epoch_iter:
+            n_new = self._train_epoch(x, y)
             if self.verbose:
                 epoch_iter.set_postfix(nodes=self.n_committed_, new=n_new)
         self.is_fitted_ = True
         return self
 
-    def partial_fit(self, X: NDArray, y: NDArray) -> "BayesianARTMAP":
+    def partial_fit(self, x: NDArray, y: NDArray) -> BayesianARTMAP:
         """Incremental / streaming fit."""
-        X, y = self._validate_inputs(X, y)
+        x, y = self._validate_inputs(x, y)
         if not self.is_fitted_:
-            self._initialise(X, y)
+            self._initialise(x, y)
         else:
             self.classes_ = np.unique(np.concatenate([self.classes_, np.unique(y)]))
-        self._train_epoch(X, y)
+        self._train_epoch(x, y)
         self.is_fitted_ = True
         return self
 
-    def predict(self, X: NDArray) -> NDArray:
-        """Return class labels for X."""
-        proba = self.predict_proba(X)
+    def predict(self, x: NDArray) -> NDArray:
+        """Return class labels for x."""
+        proba = self.predict_proba(x)
         idx = np.argmax(proba, axis=1)
         return np.array([self.classes_[i] for i in idx])
 
-    def predict_proba(self, X: NDArray) -> NDArray:
+    def predict_proba(self, x: NDArray) -> NDArray:
         """Return calibrated class probabilities P(k | x).
 
         Uses the full Bayesian posterior:
@@ -153,17 +152,17 @@ class BayesianARTMAP(BaseART):
         NDArray, shape (n_samples, n_classes)
         """
         self._check_is_fitted()
-        X = np.asarray(X, dtype=np.float64)
-        if X.ndim == 1:
-            X = X[np.newaxis, :]
+        x = np.asarray(x, dtype=np.float64)
+        if x.ndim == 1:
+            x = x[np.newaxis, :]
         n_classes = len(self.classes_)
         class_list = list(self.classes_)
-        proba = np.zeros((len(X), n_classes))
-        for i, x in enumerate(X):
-            proba[i] = self._posterior(x, class_list)
+        proba = np.zeros((len(x), n_classes))
+        for i, x_ in enumerate(x):
+            proba[i] = self._posterior(x_, class_list)
         return proba
 
-    def predict_uncertainty(self, X: NDArray) -> NDArray:
+    def predict_uncertainty(self, x: NDArray) -> NDArray:
         """Return predictive entropy H[P(k|x)] as an uncertainty measure.
 
         Higher entropy = less confident prediction.
@@ -172,7 +171,7 @@ class BayesianARTMAP(BaseART):
         -------
         NDArray, shape (n_samples,)
         """
-        proba = self.predict_proba(X)
+        proba = self.predict_proba(x)
         # Shannon entropy, safe log
         log_p = np.where(proba > 0, np.log(proba), 0.0)
         return -np.sum(proba * log_p, axis=1)
@@ -181,24 +180,24 @@ class BayesianARTMAP(BaseART):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _validate_inputs(self, X, y):
-        X = np.asarray(X, dtype=np.float64)
+    def _validate_inputs(self, x, y):
+        x = np.asarray(x, dtype=np.float64)
         y = np.asarray(y)
-        if X.ndim != 2:
-            raise ValueError(f"X must be 2-D, got {X.shape}.")
+        if x.ndim != 2:
+            raise ValueError(f"x must be 2-D, got {x.shape}.")
         if y.ndim != 1:
             raise ValueError(f"y must be 1-D, got {y.shape}.")
-        if X.shape[0] != y.shape[0]:
-            raise ValueError("X and y length mismatch.")
-        if np.any(X < 0) or np.any(X > 1):
+        if x.shape[0] != y.shape[0]:
+            raise ValueError("x and y length mismatch.")
+        if np.any(x < 0) or np.any(x > 1):
             raise ValueError(
                 "Values must be in [0, 1]. Use fuzzyart.preprocessing.normalize()."
             )
-        return X, y
+        return x, y
 
-    def _initialise(self, X: NDArray, y: NDArray) -> None:
-        self.n_features_in_ = X.shape[1]
-        self._M = X.shape[1]   # NOTE: no complement coding in Bayesian ARTMAP
+    def _initialise(self, x: NDArray, y: NDArray) -> None:
+        self.n_features_in_ = x.shape[1]
+        self._M = x.shape[1]   # NOTE: no complement coding in Bayesian ARTMAP
         self.classes_ = np.unique(y)
         self.W_mu_ = []
         self.W_sigma_ = []
@@ -206,10 +205,10 @@ class BayesianARTMAP(BaseART):
         self.W_class_ = []
         self.n_committed_ = 0
 
-    def _train_epoch(self, X: NDArray, y: NDArray) -> int:
+    def _train_epoch(self, x: NDArray, y: NDArray) -> int:
         n_new = 0
-        for i in range(len(X)):
-            if self._train_one(X[i], y[i]):
+        for i in range(len(x)):
+            if self._train_one(x[i], y[i]):
                 n_new += 1
         return n_new
 
@@ -222,8 +221,8 @@ class BayesianARTMAP(BaseART):
             return True
 
         # Activation: log p(x|j) + log pi_j  (log-posterior proportional)
-        T = self._compute_log_activations(x)
-        order = np.flip(np.argsort(T))
+        t = self._compute_log_activations(x)
+        order = np.flip(np.argsort(t))
 
         for j in order:
             match = self._match_score(x, j)
@@ -240,10 +239,10 @@ class BayesianARTMAP(BaseART):
     def _compute_log_activations(self, x: NDArray) -> NDArray:
         """log T_j = log p(x|j) + log pi_j"""
         total_n = sum(self.W_n_)
-        T = np.zeros(self.n_committed_)
+        t = np.zeros(self.n_committed_)
         for j in range(self.n_committed_):
-            T[j] = self._log_likelihood(x, j) + np.log(self.W_n_[j] / total_n)
-        return T
+            t[j] = self._log_likelihood(x, j) + np.log(self.W_n_[j] / total_n)
+        return t
 
     def _log_likelihood(self, x: NDArray, j: int) -> float:
         """Diagonal Gaussian log-likelihood log N(x; mu_j, diag(sigma_j^2))."""
