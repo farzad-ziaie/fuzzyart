@@ -95,34 +95,34 @@ jobs:
           path: docs/_build/html/
 
   # ── Build & Publish ─────────────────────────────────────────────────────────
-publish:
-  needs: [lint, test, docs]
-  runs-on: ubuntu-latest
-  if: startsWith(github.ref, 'refs/tags/v')
+  publish:
+    needs: [lint, test, docs]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
 
-  environment:
-    name: pypi
-    url: https://pypi.org/p/fuzzyart
+    environment:
+      name: pypi
+      url: https://pypi.org/p/fuzzyart
 
-  permissions:
-    id-token: write
+    permissions:
+      id-token: write
 
-  steps:
-    - uses: actions/checkout@v4
+    steps:
+      - uses: actions/checkout@v4
 
-    - uses: actions/setup-python@v5
-      with:
-        python-version: "3.12"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-    - name: Install Poetry
-      run: pip install poetry
+      - name: Install Poetry
+        run: pip install poetry
 
-    - name: Build package
-      run: poetry build
+      - name: Build package
+        run: poetry build
 
-    - name: Publish to PyPI (OIDC)
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        provider: pypi
-        packages_dir: dist
+      - name: Publish to PyPI (OIDC)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          provider: pypi
+          packages_dir: dist
 
