@@ -45,7 +45,7 @@ class TestSemiSupervisedARTMAP:
     def test_fit_with_unlabelled(self, iris_split):
         X_l, y_l, X_u, _ = iris_split
         clf = SemiSupervisedARTMAP(epochs=3, em_iterations=5)
-        clf.fit(X_l, y_l, X_unlabelled=X_u)
+        clf.fit(X_l, y_l, x_unlabelled=X_u)
         assert clf.is_fitted_
 
     def test_semi_supervised_at_least_as_good_as_supervised(self, iris_split):
@@ -56,7 +56,7 @@ class TestSemiSupervisedARTMAP:
 
         sup_clf = BayesianARTMAP(epochs=5).fit(X_l, y_l)
         ss_clf  = SemiSupervisedARTMAP(epochs=5, em_iterations=10).fit(
-            X_l, y_l, X_unlabelled=X_u
+            X_l, y_l, x_unlabelled=X_u
         )
         # Both should be above 70% on the full dataset
         for clf in (sup_clf, ss_clf):
@@ -66,7 +66,7 @@ class TestSemiSupervisedARTMAP:
     def test_predict_unlabelled(self, iris_split):
         X_l, y_l, X_u, _ = iris_split
         clf = SemiSupervisedARTMAP(epochs=3, em_iterations=5).fit(
-            X_l, y_l, X_unlabelled=X_u
+            X_l, y_l, x_unlabelled=X_u
         )
         preds = clf.predict_unlabelled(X_u)
         assert preds.shape == (len(X_u),)
@@ -75,7 +75,7 @@ class TestSemiSupervisedARTMAP:
     def test_predict_proba_sums_to_one(self, iris_split):
         X_l, y_l, X_u, _ = iris_split
         clf = SemiSupervisedARTMAP(epochs=3, em_iterations=3).fit(
-            X_l, y_l, X_unlabelled=X_u
+            X_l, y_l, x_unlabelled=X_u
         )
         proba = clf.predict_proba(X_u)
         np.testing.assert_allclose(proba.sum(axis=1), 1.0, atol=1e-6)
@@ -85,7 +85,7 @@ class TestSemiSupervisedARTMAP:
         X_bad = np.full((5, X.shape[1]), 2.0)
         clf = SemiSupervisedARTMAP()
         with pytest.raises(ValueError):
-            clf.fit(X, y, X_unlabelled=X_bad)
+            clf.fit(X, y, x_unlabelled=X_bad)
 
 
 # =============================================================================

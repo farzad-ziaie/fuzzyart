@@ -28,8 +28,6 @@ Key benefits
 
 from __future__ import annotations
 
-from typing import Any
-
 import numpy as np
 from numpy.typing import NDArray
 from tqdm.auto import trange
@@ -102,19 +100,19 @@ class SemiSupervisedARTMAP(BayesianARTMAP):
 
     def fit(
         self,
-        X: NDArray,
+        x: NDArray,
         y: NDArray,
-        X_unlabelled: NDArray | None = None,
-    ) -> "SemiSupervisedARTMAP":
+        x_unlabelled: NDArray | None = None,
+    ) -> SemiSupervisedARTMAP:
         """Train using labelled data and (optionally) unlabelled data.
 
         Parameters
         ----------
-        X : NDArray, shape (n_labelled, n_features)
+        x : NDArray, shape (n_labelled, n_features)
             Labelled feature matrix in ``[0, 1]``.
         y : NDArray, shape (n_labelled,)
             Class labels.
-        X_unlabelled : NDArray or None, shape (n_unlabelled, n_features)
+        x_unlabelled : NDArray or None, shape (n_unlabelled, n_features)
             Unlabelled feature matrix in ``[0, 1]``.  If ``None``, falls
             back to standard Bayesian ARTMAP training.
 
@@ -123,37 +121,37 @@ class SemiSupervisedARTMAP(BayesianARTMAP):
         self
         """
         # Phase 1: supervised training on labelled data
-        super().fit(X, y)
+        super().fit(x, y)
 
-        if X_unlabelled is None or len(X_unlabelled) == 0:
+        if x_unlabelled is None or len(x_unlabelled) == 0:
             return self
 
-        X_u = np.asarray(X_unlabelled, dtype=np.float64)
-        if np.any(X_u < 0) or np.any(X_u > 1):
-            raise ValueError("X_unlabelled values must be in [0, 1].")
+        x_u = np.asarray(x_unlabelled, dtype=np.float64)
+        if np.any(x_u < 0) or np.any(x_u > 1):
+            raise ValueError("x_unlabelled values must be in [0, 1].")
 
         # Phase 2: EM iterations
         em_iter = trange(
             self.em_iterations, desc="EM", disable=not self.verbose
         )
         for _ in em_iter:
-            self._em_step(X_u)
+            self._em_step(x_u)
             if self.verbose:
                 em_iter.set_postfix(nodes=self.n_committed_)
 
         return self
 
-    def predict_unlabelled(self, X_unlabelled: NDArray) -> NDArray:
+    def predict_unlabelled(self, x_unlabelled: NDArray) -> NDArray:
         """Convenience: predict labels for unlabelled samples."""
-        return self.predict(X_unlabelled)
+        return self.predict(x_unlabelled)
 
     # ------------------------------------------------------------------
     # EM internals
     # ------------------------------------------------------------------
 
-    def _em_step(self, X_u: NDArray) -> None:
+    def _em_step(self, x_u: NDArray) -> None:
         """One combined E+M step over all unlabelled samples."""
-        class_list = list(self.classes_)
+        # class_list = list(self.classes_)
         total_n = sum(self.W_n_)
 
         # Accumulate soft statistics
@@ -165,7 +163,7 @@ class SemiSupervisedARTMAP(BayesianARTMAP):
         n_sum    = np.zeros(self.n_committed_)
 
         # E-step: compute responsibilities
-        for x in X_u:
+        for x in x_u:
             log_joint = np.array([
                 self._log_likelihood(x, j) + np.log(self.W_n_[j] / total_n)
                 for j in range(self.n_committed_)
