@@ -2,7 +2,8 @@
 
 import numpy as np
 import pytest
-from fuzzyart.utils.math import l1_norm, fuzzy_and, complement
+
+from fuzzyart.utils.math import complement, fuzzy_and, l1_norm
 
 
 class TestL1Norm:

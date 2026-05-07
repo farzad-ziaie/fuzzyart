@@ -2,17 +2,14 @@
 
 import pickle
 import tempfile
-from pathlib import Path
 
 import numpy as np
 import pytest
 from sklearn.datasets import load_iris
 from sklearn.model_selection import cross_val_score
-from sklearn.utils.estimator_checks import parametrize_with_checks
 
 from fuzzyart import FuzzyARTMAP
 from fuzzyart.preprocessing import normalize
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -61,10 +58,10 @@ class TestInit:
 # ---------------------------------------------------------------------------
 
 class TestInputValidation:
-    def test_raises_on_3d_input(self, simple_X, simple_y):
+    def test_raises_on_3d_input(self, simple_x, simple_y):
         clf = FuzzyARTMAP()
         with pytest.raises(ValueError, match="2-D"):
-            clf.fit(simple_X[np.newaxis], simple_y)
+            clf.fit(simple_x[np.newaxis], simple_y)
 
     def test_raises_on_out_of_range(self, simple_y):
         clf = FuzzyARTMAP()
@@ -72,15 +69,15 @@ class TestInputValidation:
         with pytest.raises(ValueError, match=r"\[0, 1\]"):
             clf.fit(X_bad, simple_y)
 
-    def test_raises_on_length_mismatch(self, simple_X):
+    def test_raises_on_length_mismatch(self, simple_x):
         clf = FuzzyARTMAP()
         with pytest.raises(ValueError, match="same number of samples"):
-            clf.fit(simple_X, np.array([0, 1]))
+            clf.fit(simple_x, np.array([0, 1]))
 
-    def test_predict_before_fit_raises(self, simple_X):
+    def test_predict_before_fit_raises(self, simple_x):
         clf = FuzzyARTMAP()
         with pytest.raises(RuntimeError, match="not fitted"):
-            clf.predict(simple_X)
+            clf.predict(simple_x)
 
 
 # ---------------------------------------------------------------------------
@@ -88,19 +85,19 @@ class TestInputValidation:
 # ---------------------------------------------------------------------------
 
 class TestFit:
-    def test_returns_self(self, simple_X, simple_y):
+    def test_returns_self(self, simple_x, simple_y):
         clf = FuzzyARTMAP()
-        result = clf.fit(simple_X, simple_y)
+        result = clf.fit(simple_x, simple_y)
         assert result is clf
 
-    def test_is_fitted_after_fit(self, simple_X, simple_y):
+    def test_is_fitted_after_fit(self, simple_x, simple_y):
         clf = FuzzyARTMAP()
-        clf.fit(simple_X, simple_y)
+        clf.fit(simple_x, simple_y)
         assert clf.is_fitted_
 
-    def test_commits_at_least_one_node(self, simple_X, simple_y):
+    def test_commits_at_least_one_node(self, simple_x, simple_y):
         clf = FuzzyARTMAP()
-        clf.fit(simple_X, simple_y)
+        clf.fit(simple_x, simple_y)
         assert clf.n_committed_ >= 1
 
     def test_classes_detected(self, iris_data):
@@ -146,20 +143,20 @@ class TestPredict:
 
 
 class TestPartialFit:
-    def test_incremental_same_result(self, simple_X, simple_y):
-        clf1 = FuzzyARTMAP().fit(simple_X, simple_y)
+    def test_incremental_same_result(self, simple_x, simple_y):
+        clf1 = FuzzyARTMAP().fit(simple_x, simple_y)
 
         clf2 = FuzzyARTMAP()
-        for xi, yi in zip(simple_X, simple_y):
+        for xi, yi in zip(simple_x, simple_y):
             clf2.partial_fit(xi[np.newaxis], np.array([yi]))
 
         np.testing.assert_array_equal(
-            clf1.predict(simple_X), clf2.predict(simple_X)
+            clf1.predict(simple_x), clf2.predict(simple_x)
         )
 
-    def test_partial_fit_is_fitted(self, simple_X, simple_y):
+    def test_partial_fit_is_fitted(self, simple_x, simple_y):
         clf = FuzzyARTMAP()
-        clf.partial_fit(simple_X[:1], simple_y[:1])
+        clf.partial_fit(simple_x[:1], simple_y[:1])
         assert clf.is_fitted_
 
 

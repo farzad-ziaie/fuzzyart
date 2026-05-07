@@ -6,11 +6,11 @@ from sklearn.datasets import load_iris
 from sklearn.model_selection import StratifiedKFold, cross_val_score
 
 from fuzzyart import (
+    BaggingARTMAP,
     BayesianARTMAP,
     FuzzyARTMAP,
     SemiSupervisedARTMAP,
     VotingARTMAP,
-    BaggingARTMAP,
 )
 from fuzzyart.preprocessing import normalize
 

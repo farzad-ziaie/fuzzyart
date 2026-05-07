@@ -2,9 +2,10 @@
 
 import numpy as np
 import pytest
+
 from fuzzyart.preprocessing import (
-    normalize,
     complement_code,
+    normalize,
     normalize_and_complement_code,
 )
 
